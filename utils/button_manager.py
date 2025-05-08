@@ -106,6 +106,14 @@ class ButtonManager:
                     url=config.CHANNEL_LINK_4
                 )
             ])
+
+        if config.BOT_USERNAME: 
+            buttons.append([
+                InlineKeyboardButton(
+                    "✅ Try Again",
+                    url=f"https://t.me/{config.BOT_USERNAME}?start=start"
+                )
+            ])
             
         return InlineKeyboardMarkup(buttons)
 
