@@ -17,6 +17,7 @@ class Database:
             self.files_collection = self.db.files
             self.users_collection = self.db.users
             self.batch_collection = self.db.batches
+            self.settings = self.db.settings
             self.messages_collection = self.db.messages
             logger.info("Database connection established successfully")
         except Exception as e:
@@ -216,6 +217,25 @@ class Database:
             logger.error(f"Error incrementing batch downloads: {str(e)}")
             return 0
 
+    async def get_setting(self, key: str, default=None):
+        try:
+            doc = await self.settings.find_one({"key": key})
+            return doc["value"] if doc else default
+        except Exception as e:
+            logger.error(f"Error getting setting '{key}': {str(e)}")
+            return default
+
+    async def set_setting(self, key: str, value):
+        try:
+            await self.settings.update_one(
+                {"key": key},
+                {"$set": {"value": value}},
+                upsert=True
+            )
+            logger.info(f"Setting '{key}' updated to: {value}")
+        except Exception as e:
+            logger.error(f"Error setting '{key}': {str(e)}")
+
     async def get_stats(self) -> dict:
         try:
             total_users = await self.users_collection.count_documents({})
@@ -251,4 +271,4 @@ class Database:
                 "total_downloads": 0,
                 "total_batch_downloads": 0,
                 "active_files": 0
-                        }
+            }
