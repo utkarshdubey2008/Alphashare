@@ -73,7 +73,7 @@ python main.py
 ```
 ## 📜 License
 
-This project is licensed under the [GNU General Public License v3.0](https://github.com/utkarshdubey2008/License).
+This project is licensed under the [GNU General Public License v3.0](https://github.com/utkarshdubey2008/Alphashare/blob/main/License).
 
 ## 🙏 Credits
 
