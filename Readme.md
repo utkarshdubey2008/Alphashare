@@ -30,7 +30,7 @@
   </a>
 </p>
 
-## 🚀 Latest Updates (v3.2.1)
+## 🚀 Latest Updates (V.1.7)
 
 - **Fixed Broadcast Bugs**: Resolved issues with message broadcasting
 - **Enhanced Force Sub**: Added support for multiple force sub channels
@@ -73,7 +73,7 @@ python main.py
 ```
 ## 📜 License
 
-This project is licensed under the [GNU General Public License v3.0](https://github.com/utkarshdubey2008/Alphashare/blob/main/License).
+This project is licensed under the [MIT LICENSE](https://github.com/utkarshdubey2008/Alphashare/blob/main/License).
 
 ## 🙏 Credits
 
