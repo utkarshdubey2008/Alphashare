@@ -18,7 +18,7 @@ async def progress_callback(
     
     speed = current / diff
     percentage = current * 100 / total
-    time_to_complete = round((total - current) / speed)
+    time_to_complete = round((total - current) / speed) if speed != 0 else 0
     time_to_complete = TimeFormatter(time_to_complete)
     
     progress = "[{0}{1}] \n".format(
@@ -36,7 +36,7 @@ async def progress_callback(
     )
     
     try:
-        await message.edit(current_message)
+        await message.edit_text(current_message)
     except:
         pass
 
@@ -46,7 +46,7 @@ def humanbytes(size: Union[int, float]) -> str:
     power = 2**10
     n = 0
     power_labels = {0: '', 1: 'K', 2: 'M', 3: 'G', 4: 'T'}
-    while size > power:
+    while size >= power and n < 4:
         size /= power
         n += 1
     return f"{size:.2f} {power_labels[n]}B"
@@ -63,4 +63,3 @@ def TimeFormatter(seconds: int) -> str:
         (f"{seconds}s" if seconds else "")
     )
     return tmp
-    
