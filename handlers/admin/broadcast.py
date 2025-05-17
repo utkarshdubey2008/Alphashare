@@ -2,7 +2,7 @@ import asyncio, re
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from database import Database
-from utils import is_admin
+from handlers.admin.manage_admin import get_all_admin_ids
 
 db = Database()
 
@@ -17,8 +17,13 @@ async def save_broadcast_setting(key, value):
 
 @Client.on_message(filters.command("bcast_time") & filters.private)
 async def bcast_time(client, message):
-    if not is_admin(message):
-        return await message.reply("⚠️ You are not authorized to use this command!")
+    from_user_id = message.from_user.id
+
+    admins = await get_all_admin_ids()
+
+    if from_user_id not in admins:
+        return await message.reply_text("__You are not authorized to use this command!__")
+    
     cmd = message.text.strip().split(maxsplit=1)
     if len(cmd) != 2 or cmd[1].lower() not in ["on", "off"]:
         return await message.reply("Usage: `/bcast_time on` or `/bcast_time off`")
@@ -39,8 +44,12 @@ def parse_buttons(text):
 
 @Client.on_message(filters.command("bcast") & filters.private)
 async def broadcast_command(client, message: Message):
-    if not is_admin(message):
-        return await message.reply("⚠️ You are not authorized to use this command!")
+    from_user_id = message.from_user.id
+
+    admins = await get_all_admin_ids()
+
+    if from_user_id not in admins:
+        return await message.reply_text("__You are not authorized to use this command!__")
 
     users = await db.get_all_users()
     text, media, caption, buttons = None, None, None, None

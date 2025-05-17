@@ -1,18 +1,22 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from database import Database
-from utils import ButtonManager, is_admin, humanbytes
+from utils import ButtonManager, humanbytes
 import config
 import uuid
+from handlers.admin.manage_admin import get_all_admin_ids
 
 db = Database()
 button_manager = ButtonManager()
 
 @Client.on_message(filters.command("upload") & filters.reply)
 async def upload_command(client: Client, message: Message):
-    if not is_admin(message):
-        await message.reply_text("⚠️ You are not authorized to upload files!")
-        return
+    from_user_id = message.from_user.id
+
+    admins = await get_all_admin_ids()
+
+    if from_user_id not in admins:
+        return await message.reply_text("__You are not authorized to upload files!__")
     
     replied_msg = message.reply_to_message
     if not replied_msg:
