@@ -19,6 +19,8 @@ class Database:
             self.batch_collection = self.db.batches
             self.settings = self.db.settings
             self.messages_collection = self.db.messages
+            self.admin_collection = self.db.admins
+            
             logger.info("Database connection established successfully")
         except Exception as e:
             logger.error(f"Database connection failed: {str(e)}")

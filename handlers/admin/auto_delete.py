@@ -1,12 +1,15 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from utils import is_admin
+from handlers.admin.manage_admin import get_all_admin_ids
 
 @Client.on_message(filters.command("auto_del"))
 async def auto_delete_command(client: Client, message: Message):
-    if not is_admin(message):
-        await message.reply_text("⚠️ You are not authorized to use this command!")
-        return
+    user_id = message.from_user.id
+
+    admins = await get_all_admin_ids()
+
+    if user_id not in admins:
+        return await message.reply_text("__You are not authorized to use this command!__")
 
     await message.reply_text(
         "**⚙️ Auto Delete Time Configuration Moved**\n\n"

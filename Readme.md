@@ -32,12 +32,19 @@
 
 ## 🚀 Latest Updates (V.1.7)
 
+- **Upgraded Admin System with MongoDB**: Dynamically manage admin list.
 - **Fixed Broadcast Bugs**: Resolved issues with message broadcasting
 - **Enhanced Force Sub**: Added support for multiple force sub channels
 - **Start Photo**: Bot now displays a welcome photo on /start
 - **Improved Button Support**: Broadcasts now support inline buttons (full button support coming in next update)
 - **Performance Improvements**: Reduced database queries and optimized file handling
 - **Bug Fixes**: Resolved several minor issues reported by users
+
+### ✅ Admin Commands:
+- `/addadmin <user_id>` — Dynamically add a new admin (Owner only)
+- `/rmadmin <user_id>` — Remove admin privileges (Owner only)
+- `/adminlist` — Fetch current admin list including Owner (Owner only)
+- Owner is automatically always included in the admin list
 
 ## ✨ Key Features
 

@@ -1,11 +1,12 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from database import Database
-from utils import ButtonManager, is_admin, humanbytes
+from utils import ButtonManager, humanbytes
 import config
 import uuid
 from datetime import datetime
 import pytz
+from handlers.admin.manage_admin import get_all_admin_ids
 
 db = Database()
 button_manager = ButtonManager()
@@ -13,9 +14,12 @@ batch_users = {}
 
 @Client.on_message(filters.command("batch") & filters.private)
 async def batch_command(client: Client, message: Message):
-    if not is_admin(message):
-        await message.reply_text("⚠️ You are not authorized to use batch mode!")
-        return
+    from_user_id = message.from_user.id
+
+    admins = await get_all_admin_ids()
+
+    if from_user_id not in admins:
+        return await message.reply_text("__You are not authorized to use batch mode!__")
     
     user_id = message.from_user.id
     batch_users[user_id] = {
@@ -34,8 +38,12 @@ async def batch_command(client: Client, message: Message):
 @Client.on_message(~filters.command(["batch", "done", "cancel"]) & filters.private)
 async def handle_batch_file(client: Client, message: Message):
     user_id = message.from_user.id
-    if not is_admin(message):
+
+    admins = await get_all_admin_ids()
+
+    if user_id not in admins:
         return
+    
     if user_id not in batch_users:
         return
     
@@ -117,7 +125,10 @@ async def handle_batch_file(client: Client, message: Message):
 @Client.on_message(filters.command("done") & filters.private)
 async def done_command(client: Client, message: Message):
     user_id = message.from_user.id
-    if not is_admin(message):
+
+    admins = await get_all_admin_ids()
+
+    if user_id not in admins:
         return
         
     if user_id not in batch_users:
@@ -201,7 +212,10 @@ async def handle_batch_start(client: Client, message: Message):
 @Client.on_message(filters.command("cancel") & filters.private)
 async def cancel_command(client: Client, message: Message):
     user_id = message.from_user.id
-    if not is_admin(message):
+
+    admins = await get_all_admin_ids()
+
+    if user_id not in admins:
         return
         
     if user_id in batch_users:

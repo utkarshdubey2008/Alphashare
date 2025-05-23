@@ -1,18 +1,22 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from database import Database
-from utils import is_admin, humanbytes
+from utils import humanbytes
 import config
 import logging
+from handlers.admin.manage_admin import get_all_admin_ids
 
 logger = logging.getLogger(__name__)
 db = Database()
 
 @Client.on_message(filters.command("stats"))
 async def stats_command(client: Client, message: Message):
-    if not is_admin(message):
-        await message.reply_text("⚠️ You are not authorized to use this command!")
-        return
+    from_user_id = message.from_user.id
+
+    admins = await get_all_admin_ids()
+
+    if from_user_id not in admins:
+        return await message.reply_text("__You are not authorized to use this command!__")
 
     try:
         stats = await db.get_stats()
