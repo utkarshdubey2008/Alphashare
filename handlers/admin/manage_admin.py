@@ -58,12 +58,12 @@ async def add_admin_cmd(client: Client, message: Message):
         return
     
     if len(message.command) != 2:
-        return await message.reply_text("**Usage:**\n`/addadmin <user_id>`")
+        return await message.reply_text("**Usage:**\n`/addadmin user_id`")
 
     try:
         parts = message.text.split()
         if len(parts) != 2 or not parts[1].isdigit():
-            await message.reply_text("**Usage:** `/addadmin <user_id>`")
+            await message.reply_text("**Usage:** `/addadmin user_id`")
             return
 
         user_id = int(parts[1])
@@ -87,7 +87,7 @@ async def remove_admin_cmd(client, message: Message):
             return await message.reply_text("__Only my Owner can remove admins.__")
 
         if len(message.command) != 2:
-            return await message.reply_text("**Usage:** `/removeadmin <user_id>`")
+            return await message.reply_text("**Usage:** `/removeadmin user_id`")
 
         target_id = int(message.command[1])
 
