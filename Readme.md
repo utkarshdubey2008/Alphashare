@@ -32,6 +32,7 @@
 
 ## 🚀 Latest Updates (V.1.7)
 
+- **Upgraded Admin System with MongoDB**: Dynamically manage admin list.
 - **Fixed Broadcast Bugs**: Resolved issues with message broadcasting
 - **Enhanced Force Sub**: Added support for multiple force sub channels
 - **Start Photo**: Bot now displays a welcome photo on /start
