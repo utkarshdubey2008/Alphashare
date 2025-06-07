@@ -52,6 +52,7 @@ async def start_command(client: Client, message: Message):
 
     if len(message.command) > 1:
         command = message.command[1]
+        file_uuid = message.command[1]
 
         force_sub_status = await button_manager.check_force_sub(client, message.from_user.id)
         if not force_sub_status:
@@ -71,7 +72,7 @@ async def start_command(client: Client, message: Message):
 
             await message.reply_text(
                 force_sub_text,
-                reply_markup=button_manager.force_sub_button(),
+                reply_markup=button_manager.force_sub_button_new(file_uuid),
                 protect_content=config.PRIVACY_MODE
             )
             return
