@@ -103,6 +103,7 @@ async def upload_command(client: Client, message: Message):
 
         file_uuid = await db.add_file(file_data)
         share_link = f"https://t.me/{config.BOT_USERNAME}?start={file_uuid}"
+        chat_share_link = f"https://t.me/share/url?url={share_link}"
         
         upload_success_text = (
             f"✅ **File Upload Successful**\n\n"
@@ -116,7 +117,7 @@ async def upload_command(client: Client, message: Message):
         
         await status_msg.edit_text(
             upload_success_text,
-            reply_markup=button_manager.file_button(file_uuid)
+            reply_markup=button_manager.file_button(chat_share_link, file_uuid)
         )
 
     except Exception as e:

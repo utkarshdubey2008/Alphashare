@@ -155,6 +155,8 @@ async def done_command(client: Client, message: Message):
         
         await db.batch_collection.insert_one(batch_data)
         batch_link = f"https://t.me/{config.BOT_USERNAME}?start=batch_{batch_uuid}"
+
+        chat_share_link = f"https://t.me/share/url?url={batch_link}"
         
         await status_msg.edit_text(
             f"✅ **Batch Created Successfully**\n\n"
@@ -162,7 +164,7 @@ async def done_command(client: Client, message: Message):
             f"⏱ **Auto-Delete:** {batch_data['auto_delete_time']} minutes\n"
             f"🔗 **Batch Link:** `{batch_link}`\n\n"
             f"Anyone with this link can access all files.",
-            reply_markup=button_manager.file_button(batch_uuid)
+            reply_markup=button_manager.file_button(chat_share_link, batch_uuid)
         )
         
         del batch_users[user_id]
