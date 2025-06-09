@@ -124,17 +124,6 @@ class ButtonManager:
                 InlineKeyboardButton("About ℹ️", callback_data="about")
             ]
         ]
-        
-        if config.CHANNEL_LINK:
-            if config.CHANNEL_LINK_2:
-                buttons.append([
-                    InlineKeyboardButton("Channel 1 📢", url=config.CHANNEL_LINK),
-                    InlineKeyboardButton("Channel 2 📢", url=config.CHANNEL_LINK_2)
-                ])
-            else:
-                buttons.append([
-                    InlineKeyboardButton("Channel 📢", url=config.CHANNEL_LINK)
-                ])
                 
         buttons.append([
             InlineKeyboardButton("Developer 👨‍💻", url=config.DEVELOPER_LINK)
@@ -150,17 +139,6 @@ class ButtonManager:
             ]
         ]
         
-        if config.CHANNEL_LINK:
-            if config.CHANNEL_LINK_2:
-                buttons.append([
-                    InlineKeyboardButton("Channel 1 📢", url=config.CHANNEL_LINK),
-                    InlineKeyboardButton("Channel 2 📢", url=config.CHANNEL_LINK_2)
-                ])
-            else:
-                buttons.append([
-                    InlineKeyboardButton("Channel 📢", url=config.CHANNEL_LINK)
-                ])
-        
         return InlineKeyboardMarkup(buttons)
 
     def about_button(self) -> InlineKeyboardMarkup:
@@ -171,37 +149,15 @@ class ButtonManager:
             ]
         ]
         
-        if config.CHANNEL_LINK:
-            if config.CHANNEL_LINK_2:
-                buttons.append([
-                    InlineKeyboardButton("Channel 1 📢", url=config.CHANNEL_LINK),
-                    InlineKeyboardButton("Channel 2 📢", url=config.CHANNEL_LINK_2)
-                ])
-            else:
-                buttons.append([
-                    InlineKeyboardButton("Channel 📢", url=config.CHANNEL_LINK)
-                ])
-        
         return InlineKeyboardMarkup(buttons)
 
-    def file_button(self, file_uuid: str) -> InlineKeyboardMarkup:
+    def file_button(self, chat_share_link, file_uuid: str) -> InlineKeyboardMarkup:
         buttons = [
             [
                 InlineKeyboardButton("Download 📥", callback_data=f"download_{file_uuid}"),
-                InlineKeyboardButton("Share Link 🔗", callback_data=f"share_{file_uuid}")
+                InlineKeyboardButton("Share Link 🔗", url=chat_share_link)
             ]
         ]
-        
-        if config.CHANNEL_LINK:
-            if config.CHANNEL_LINK_2:
-                buttons.append([
-                    InlineKeyboardButton("Channel 1 📢", url=config.CHANNEL_LINK),
-                    InlineKeyboardButton("Channel 2 📢", url=config.CHANNEL_LINK_2)
-                ])
-            else:
-                buttons.append([
-                    InlineKeyboardButton("Channel 📢", url=config.CHANNEL_LINK)
-                ])
         
         return InlineKeyboardMarkup(buttons)
 
@@ -213,15 +169,50 @@ class ButtonManager:
             ]
         ]
         
-        if config.CHANNEL_LINK:
-            if config.CHANNEL_LINK_2:
-                buttons.append([
-                    InlineKeyboardButton("Channel 1 📢", url=config.CHANNEL_LINK),
-                    InlineKeyboardButton("Channel 2 📢", url=config.CHANNEL_LINK_2)
-                ])
-            else:
-                buttons.append([
-                    InlineKeyboardButton("Channel 📢", url=config.CHANNEL_LINK)
-                ])
+        return InlineKeyboardMarkup(buttons)
+    
+
+    def force_sub_button_new(self, file_uuid: str) -> InlineKeyboardMarkup:
+        buttons = []
         
+        if config.FORCE_SUB_CHANNEL != 0 and config.CHANNEL_LINK:
+            buttons.append([
+                InlineKeyboardButton(
+                    "Join Channel 1 🔔",
+                    url=config.CHANNEL_LINK
+                )
+            ])
+            
+        if config.FORCE_SUB_CHANNEL_2 != 0 and config.CHANNEL_LINK_2:
+            buttons.append([
+                InlineKeyboardButton(
+                    "Join Channel 2 🔔",
+                    url=config.CHANNEL_LINK_2
+                )
+            ])
+
+        if config.FORCE_SUB_CHANNEL_3 != 0 and config.CHANNEL_LINK_3:
+            buttons.append([
+                InlineKeyboardButton(
+                    "Join Channel 3 🔔",
+                    url=config.CHANNEL_LINK_3
+                )
+            ])
+
+        if config.FORCE_SUB_CHANNEL_4 != 0 and config.CHANNEL_LINK_4:
+            buttons.append([
+                InlineKeyboardButton(
+                    "Join Channel 4 🔔",
+                    url=config.CHANNEL_LINK_4
+                )
+            ])
+
+        if config.BOT_USERNAME: 
+            buttons.append([
+                InlineKeyboardButton(
+                    "✅ Try Again",
+                    url=f"https://t.me/{config.BOT_USERNAME}?start={file_uuid}"
+                )
+            ])
+            
         return InlineKeyboardMarkup(buttons)
