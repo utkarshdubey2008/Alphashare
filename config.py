@@ -35,11 +35,11 @@ START_PHOTO = os.getenv("START_PHOTO", "") #start photo for bot
 # Bot Information
 BOT_USERNAME = os.getenv("BOT_USERNAME")
 BOT_NAME = os.getenv("BOT_NAME")
-BOT_VERSION = "1.6"
+BOT_VERSION = "2.0"
 
 # Privacy Mode Configuration and codexbotz delete time
 PRIVACY_MODE = os.getenv("PRIVACY_MODE", "off").lower() == "on"
-AUTO_DELETE_TIME = int(os.getenv("AUTO_DELETE_TIME", 30))
+AUTO_DELETE_TIME = int(os.getenv("AUTO_DELETE_TIME", 3))
 
 # Your Modiji Url Api Key Here
 MODIJI_API_KEY = os.getenv("MODIJI_API_KEY")
@@ -63,8 +63,8 @@ ADMIN_IDS: List[int] = [
     if admin_id.strip().isdigit()
 ]
 
-# File size limit (2GB in bytes)
-MAX_FILE_SIZE = 2000 * 1024 * 1024
+# File size limit (4GB in bytes)
+MAX_FILE_SIZE = 4000 * 1024 * 1024
 
 # Supported file types and extensions
 SUPPORTED_TYPES = [
@@ -116,18 +116,10 @@ class Messages:
     START_TEXT = """
 🎉 **Welcome to {bot_name}!** 🎉
 
-Hello {user_mention}! I'm your secure file sharing assistant.
-
-🔐 **Key Features:**
-• Secure File Sharing
-• Unique Download Links
-• Multiple File Types Support
-• Real-time Tracking
-• Force Subscribe
+Hello {user_mention}! I'm your secure file sharing assistant!
 
 📢 Join @Thealphabotz for updates!
 👨‍💻 Contact @adarsh2626 for support
-A Open Source Repo :- github.com/utkarshdubey2008/alphashare
 
 Use /help to see available commands!
 """
@@ -145,13 +137,13 @@ Use /help to see available commands!
 👑 **Admin Commands:**  
 • `/upload` - Upload a file (reply to a file)  
 • `/stats` - View bot statistics  
-• `/broadcast` - Send a message to all users  
+• `/bcast` - Send a message to all users  
 • `/auto_del` - Set auto-delete timer  
 
 
 🗑 **Auto-Delete System:**  
 • Files auto-delete after a set time.  
-• Modify timer using `/auto_del`.  
+• Modify timer using From Repo.  
 
 🔗 **Batch System:**  
 • `/batch` - Group multiple files into one link.  
@@ -161,32 +153,21 @@ Use /help to see available commands!
 🛠 **Open Source:**  
 🔗 [GitHub](https://github.com/utkarshdubey2008/alphashare)  
 
-⚠️ **Need Help?** Contact [@adarsh2626](https://t.me/adarsh2626)  
+⚠️ **Need Help?** Contact [AlphaBotz](https://t.me/alphabotzchat)  
 """
 
     ABOUT_TEXT = """
-ℹ️ **About {bot_name}**
+ℹ️ 𝙰𝚋𝚘𝚞𝚝 {bot_name}
 
-**Version:** `{version}`
-**Developer:** @adarsh2626
-**Language:** Python
-**Framework:** Pyrogram
+𝚅𝚎𝚛𝚜𝚒𝚘𝚗: {version}
+𝙳𝚎𝚟𝚎𝚕𝚘𝚙𝚎𝚛: @Alphabotzchat 
+𝙻𝚊𝚗𝚐𝚞𝚊𝚐𝚎: 𝙿𝚢𝚝𝚑𝚘𝚗
+𝙵𝚛𝚊𝚖𝚎𝚠𝚘𝚛𝚔: 𝙿𝚢𝚛𝚘𝚐𝚛𝚊𝚖
 
-📢 **Updates:** @Thealphabotz
-🛠 **Support:** @adarsh2626
-
-**Features:**
-• Secure File Sharing
-• Force Subscribe
-• Admin Controls
-• Real-time Stats
-• Multiple File Types
-• Enhanced Security
-• Automatic File Type Detection
+📢 𝚄𝚙𝚍𝚊𝚝𝚎𝚜: @TheAlphaBotz
+🛠 𝚂𝚞𝚙𝚙𝚘𝚛𝚝: @AlphaBotzChat
 
 use /repo to know more info
-
-Made with ❤️ by @adarsh2626
 """
 
     FILE_TEXT = """
@@ -204,12 +185,10 @@ Made with ❤️ by @adarsh2626
 """
 
     FORCE_SUB_TEXT = """
-⚠️ **Access Restricted!**
+⚠️ **𝙰𝚌𝚌𝚎𝚜𝚜 𝚁𝚎𝚜𝚝𝚛𝚒𝚌𝚝𝚎𝚍!**
 
-Please join our channel to use this bot:
-Bot By @Thealphabotz
-
-Click button below, then try again!
+𝙷𝚎𝚢 𝚢𝚘𝚞 𝚌𝚊𝚗'𝚝 𝚊𝚌𝚌𝚎𝚜𝚜 𝚝𝚑𝚒𝚜 𝚏𝚒𝚕𝚎𝚜 𝚞𝚗𝚝𝚒𝚕𝚕 𝚊𝚗𝚍 𝚞𝚗𝚕𝚎𝚜𝚜 𝚢𝚘𝚞 𝚓𝚘𝚒𝚗 𝚝𝚑𝚎 𝚌𝚑𝚊𝚗𝚗𝚎𝚕𝚜 𝚋𝚎𝚕𝚘𝚠 👇 
+𝙲𝚕𝚒𝚌𝚔 𝚋𝚞𝚝𝚝𝚘𝚗 𝚋𝚎𝚕𝚘𝚠, 𝚝𝚑𝚎𝚗 𝚝𝚛𝚢 𝚊𝚐𝚊𝚒𝚗!
 """
 
 class Buttons:

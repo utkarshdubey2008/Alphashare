@@ -49,6 +49,7 @@ async def start_command(client: Client, message: Message):
         logger.error(f"Error adding user to database: {str(e)}")
 
     user_method = message.from_user.mention if message.from_user.mention else message.from_user.first_name
+    user_mention = message.from_user.mention if message.from_user.mention else f"[{message.from_user.first_name}](tg://user?id={message.from_user.id})"
 
     if len(message.command) > 1:
         command = message.command[1]
@@ -153,7 +154,7 @@ async def start_command(client: Client, message: Message):
                                     client, message.chat.id, [msg.id, info_msg.id], delete_time
                                 ))
                     return
-                except Exception as e:
+                except Exception:
                     await message.reply_text(
                         "❌ File not found or has been deleted!",
                         protect_content=config.PRIVACY_MODE
@@ -171,13 +172,7 @@ async def start_command(client: Client, message: Message):
                 )
                 return
 
-            status_msg = await message.reply_text(
-                f"🔄 **Processing Batch Download**\n\n"
-                f"📦 Total Files: {len(batch_data['files'])}\n"
-                f"⏳ Please wait...",
-                protect_content=config.PRIVACY_MODE
-            )
-
+            status_msg = await message.reply_text("🔄 Processing...", protect_content=config.PRIVACY_MODE)
             success_count = 0
             failed_count = 0
             sent_msgs = []
@@ -200,30 +195,22 @@ async def start_command(client: Client, message: Message):
                         logger.error(f"Batch file send error: {str(e)}")
                         continue
 
-            if success_count > 0 and config.AUTO_DELETE_TIME:
-                delete_time = config.AUTO_DELETE_TIME
-                info_msg = await client.send_message(
-                    chat_id=message.chat.id,
-                    text=f"⏳ **Auto Delete Information**\n\n"
-                         f"➜ This file will be deleted in {delete_time} minutes.\n"
-                         f"➜ Forward this file to your saved messages or another chat to save it permanently.",
-                    protect_content=config.PRIVACY_MODE
-                )
-                if info_msg and info_msg.id:
-                    sent_msgs.append(info_msg.id)
-                    asyncio.create_task(schedule_message_deletion(
-                        client, message.chat.id, sent_msgs, delete_time
-                    ))
-
             if success_count > 0:
                 await db.increment_batch_downloads(batch_uuid)
+                if config.AUTO_DELETE_TIME:
+                    delete_time = config.AUTO_DELETE_TIME
+                    info_msg = await client.send_message(
+                        chat_id=message.chat.id,
+                        text=f"⏳ Files will be deleted in {delete_time} minutes.\nForward to save permanently.",
+                        protect_content=config.PRIVACY_MODE
+                    )
+                    if info_msg and info_msg.id:
+                        sent_msgs.append(info_msg.id)
+                        asyncio.create_task(schedule_message_deletion(
+                            client, message.chat.id, sent_msgs, delete_time
+                        ))
 
-            status_text = (
-                f"✅ **Batch Download Complete**\n\n"
-                f"📥 Successfully sent: {success_count} files\n"
-                f"❌ Failed: {failed_count} files"
-            )
-            await status_msg.edit_text(status_text)
+            await status_msg.edit_text(f"✅ Sent: {success_count} | ❌ Failed: {failed_count}")
 
         else:
             file_uuid = command
@@ -246,13 +233,10 @@ async def start_command(client: Client, message: Message):
 
                 if msg and msg.id:
                     await db.increment_downloads(file_uuid)
-
                     if config.AUTO_DELETE_TIME:
                         delete_time = config.AUTO_DELETE_TIME
                         info_msg = await msg.reply_text(
-                            f"⏳ **Auto Delete Information**\n\n"
-                            f"➜ This file will be deleted in {delete_time} minutes.\n"
-                            f"➜ Forward this file to your saved messages or another chat to save it permanently.",
+                            f"⏳ File will be deleted in {delete_time} minutes.\nForward to save permanently.",
                             protect_content=config.PRIVACY_MODE
                         )
                         if info_msg and info_msg.id:
@@ -261,10 +245,7 @@ async def start_command(client: Client, message: Message):
                             ))
 
             except Exception as e:
-                await message.reply_text(
-                    f"❌ Error: {str(e)}",
-                    protect_content=config.PRIVACY_MODE
-                )
+                await message.reply_text(f"❌ Error: {str(e)}", protect_content=config.PRIVACY_MODE)
 
     else:
         buttons = button_manager.start_button()
@@ -272,7 +253,8 @@ async def start_command(client: Client, message: Message):
             photo=config.START_PHOTO, 
             caption=config.Messages.START_TEXT.format(
                 bot_name=config.BOT_NAME,
-                user_mention=user_method
+                user_method=user_method,
+                user_mention=user_mention
             ),
             reply_markup=buttons
-                    )
+        )
