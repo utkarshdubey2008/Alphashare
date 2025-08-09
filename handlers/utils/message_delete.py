@@ -1,25 +1,19 @@
 from pyrogram import Client
-import asyncio
-import logging
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import asyncio, logging
 
 logger = logging.getLogger(__name__)
 
-async def schedule_message_deletion(client: Client, chat_id: int, message_ids: list, delete_time: int):
-    await asyncio.sleep(delete_time * 60)
+async def schedule_message_deletion(client: Client, chat_id: int, msg_ids: list, mins: int, link: str = None):
+    await asyncio.sleep(mins * 60)
     try:
-        await client.delete_messages(chat_id, message_ids)
-        notification_msg = await client.send_message(
-            chat_id=chat_id,
-            text=(
-                "🕒 **Auto-Delete Notification**\n\n"
-                "The file you received has been automatically deleted.\n\n"
-                "• You can request the file again using the same link\n"
-                "• Save important files to your saved messages\n"
-                "• Auto-delete helps maintain server space\n\n"
-                "💡 The file remains in our database for future access"
-            )
+        await client.delete_messages(chat_id, msg_ids)
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔄 Get Again", url=link)]]) if link else None
+        await client.send_message(
+            chat_id,
+            "<codeblock>This file was auto-deleted after the set time to save space.\nUse the button below to get it again.</codeblock>",
+            reply_markup=kb,
+            parse_mode="markdown"
         )
-        await asyncio.sleep(30)
-        await notification_msg.delete()
     except Exception as e:
-        logger.error(f"Error in message deletion: {str(e)}")
+        logger.error(f"Error in deletion: {e}")
