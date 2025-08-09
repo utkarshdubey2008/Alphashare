@@ -30,7 +30,7 @@
   </a>
 </p>
 
-## 🚀 Latest Updates (V.1.7)
+## 🚀 Latest Updates (V.2.0)
 
 - **Upgraded Admin System with MongoDB**: Dynamically manage admin list.
 - **Fixed Broadcast Bugs**: Resolved issues with message broadcasting
