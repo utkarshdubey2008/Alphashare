@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/utkarshdubey2008/AlphaShare">
-    <img src="https://envs.sh/SlS.jpg" alt="Alpha Share Bot" width="500">
+    <img src="" alt="Alpha Share Bot" width="500">
   </a>
   <br>
   <b>A Powerful Telegram File Sharing Bot with Advanced Features</b>
