@@ -1,6 +1,7 @@
 # © @TheAlphaBotz [2021-2025]
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.errors import FloodWait
 from database import Database
 from utils import ButtonManager, humanbytes
 import config
@@ -42,22 +43,23 @@ async def batch_command(client: Client, message: Message):
     admins = await get_all_admin_ids()
 
     if from_user_id not in admins:
-        return await message.reply_text("__You are not authorized to use batch mode!__")
+        return await message.reply_text("__Yᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴛᴏ ᴜꜱᴇ ʙᴀᴛᴄʜ ᴍᴏᴅᴇ!__")
     
     user_id = message.from_user.id
     batch_users[user_id] = {
         "files": [],
         "status_msg": None,
         "processing_queue": [],
-        "is_processing": False
+        "is_processing": False,
+        "processed_count": 0
     }
     
     await message.reply_text(
-        "📦 **Batch Mode Activated!**\n\n"
-        "• Send multiple files one by one\n"
-        "• Each file will be processed automatically\n"
-        "• Use /done when finished to get batch link\n"
-        "• Use /cancel to cancel batch mode"
+        "📦 **Bᴀᴛᴄʜ Mᴏᴅᴇ Aᴄᴛɪᴠᴀᴛᴇᴅ!**\n\n"
+        "• Sᴇɴᴅ ᴍᴜʟᴛɪᴘʟᴇ ꜰɪʟᴇꜱ ᴏɴᴇ ʙʏ ᴏɴᴇ\n"
+        "• Eᴀᴄʜ ꜰɪʟᴇ ᴡɪʟʟ ʙᴇ ᴘʀᴏᴄᴇꜱꜱᴇᴅ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ\n"
+        "• Uꜱᴇ /done ᴡʜᴇɴ ꜰɪɴɪꜱʜᴇᴅ ᴛᴏ ɢᴇᴛ ʙᴀᴛᴄʜ ʟɪɴᴋ\n"
+        "• Uꜱᴇ /cancel ᴛᴏ ᴄᴀɴᴄᴇʟ ʙᴀᴛᴄʜ ᴍᴏᴅᴇ"
     )
 
 async def process_file_sequentially(client: Client, user_id: int):
@@ -69,10 +71,29 @@ async def process_file_sequentially(client: Client, user_id: int):
     while batch_users[user_id]["processing_queue"]:
         message_data = batch_users[user_id]["processing_queue"].pop(0)
         message = message_data["message"]
-        status_msg = message_data["status_msg"]
         
         try:
-            copied_msg = await message.copy(config.DB_CHANNEL_ID)
+            max_retries = 3
+            retry_count = 0
+            copied_msg = None
+            
+            while retry_count < max_retries:
+                try:
+                    copied_msg = await message.copy(config.DB_CHANNEL_ID)
+                    break
+                except FloodWait as e:
+                    retry_count += 1
+                    wait_time = e.value
+                    await message.reply_text(f"⏳ Fʟᴏᴏᴅᴡᴀɪᴛ {wait_time} ꜱᴇᴄᴏɴᴅꜱ. Rᴇꜱᴜᴍɪɴɢ...")
+                    await asyncio.sleep(wait_time)
+                except Exception as e:
+                    if retry_count >= max_retries - 1:
+                        raise
+                    await asyncio.sleep(2)
+            
+            if not copied_msg:
+                await message.reply_text("❌ Fᴀɪʟᴇᴅ ᴛᴏ ᴘʀᴏᴄᴇꜱꜱ ꜰɪʟᴇ ᴀꜰᴛᴇʀ ʀᴇᴛʀɪᴇꜱ")
+                continue
             
             file_data = {
                 "file_id": None,
@@ -116,41 +137,41 @@ async def process_file_sequentially(client: Client, user_id: int):
                     "file_type": "photo"
                 })
             else:
-                await status_msg.edit_text("❌ **Unsupported file type!**")
+                await message.reply_text("❌ Uɴꜱᴜᴘᴘᴏʀᴛᴇᴅ ꜰɪʟᴇ ᴛʏᴘᴇ!")
                 continue
 
             if not file_data["file_id"]:
-                await status_msg.edit_text("❌ **Could not process file!**")
+                await message.reply_text("❌ Cᴏᴜʟᴅ ɴᴏᴛ ᴘʀᴏᴄᴇꜱꜱ ꜰɪʟᴇ!")
                 continue
 
             if file_data["file_size"] > config.MAX_FILE_SIZE:
-                await status_msg.edit_text(f"❌ **File too large!**\nMaximum size: {humanbytes(config.MAX_FILE_SIZE)}")
+                await message.reply_text(f"❌ Fɪʟᴇ ᴛᴏᴏ ʟᴀʀɢᴇ!\nMᴀxɪᴍᴜᴍ ꜱɪᴢᴇ: {humanbytes(config.MAX_FILE_SIZE)}")
                 continue
 
             file_uuid = await db.add_file(file_data)
             batch_users[user_id]["files"].append(file_uuid)
+            batch_users[user_id]["processed_count"] += 1
             
-            await status_msg.edit_text(
-                f"✅ **File {len(batch_users[user_id]['files'])} Added to Batch**\n\n"
-                f"📁 **Name:** `{file_data['file_name']}`\n"
-                f"📊 **Size:** {humanbytes(file_data['file_size'])}\n"
-                f"📎 **Type:** {file_data['file_type']}\n"
-                f"🔢 **Sequence:** {file_data['sequence_number']}\n\n"
-                f"Send more files or use /done to finish batch."
-            )
+            await message.reply_text(f"✅ Fɪʟᴇ Aᴅᴅᴇᴅ Iɴ Qᴜᴇᴜᴇ ({batch_users[user_id]['processed_count']})")
 
+        except FloodWait as e:
+            batch_users[user_id]["processing_queue"].insert(0, message_data)
+            wait_time = e.value
+            await message.reply_text(f"⏳ Fʟᴏᴏᴅᴡᴀɪᴛ {wait_time} ꜱᴇᴄᴏɴᴅꜱ. Rᴇꜱᴜᴍɪɴɢ...")
+            await asyncio.sleep(wait_time)
+            continue
+            
         except Exception as e:
-            await status_msg.edit_text(
-                "❌ **Processing Failed**\n\n"
-                f"Error: {str(e)}\n\n"
-                "Please try again or contact support."
+            await message.reply_text(
+                f"❌ Pʀᴏᴄᴇꜱꜱɪɴɢ Fᴀɪʟᴇᴅ\n\n"
+                f"Eʀʀᴏʀ: {str(e)}"
             )
         
         await asyncio.sleep(0.5)
     
     batch_users[user_id]["is_processing"] = False
 
-@Client.on_message(~filters.command(["batch", "done", "cancel"]) & filters.private)
+@Client.on_message(~filters.command(["batch", "done", "cancel", "qu", "qupload", "qdone", "qud", "qcancel", "qmode"]) & filters.private)
 async def handle_batch_file(client: Client, message: Message):
     user_id = message.from_user.id
 
@@ -159,14 +180,20 @@ async def handle_batch_file(client: Client, message: Message):
     if user_id not in admins:
         return
     
+    try:
+        from handlers.admin.qupload import is_qupload_active, handle_qupload_file_internal
+        
+        if is_qupload_active(user_id):
+            await handle_qupload_file_internal(client, message, user_id)
+            return
+    except ImportError:
+        pass
+    
     if user_id not in batch_users:
         return
     
-    status_msg = await message.reply_text("🔄 **Queued for Processing**\n\n⏳ Waiting in sequence...")
-    
     batch_users[user_id]["processing_queue"].append({
-        "message": message,
-        "status_msg": status_msg
+        "message": message
     })
     
     asyncio.create_task(process_file_sequentially(client, user_id))
@@ -179,20 +206,29 @@ async def done_command(client: Client, message: Message):
 
     if user_id not in admins:
         return
+    
+    try:
+        from handlers.admin.qupload import is_qupload_active
+        if is_qupload_active(user_id):
+            return
+    except ImportError:
+        pass
         
     if user_id not in batch_users:
-        await message.reply_text("⚠️ Batch mode is not active! Use /batch to start.")
+        await message.reply_text("⚠️ Bᴀᴛᴄʜ ᴍᴏᴅᴇ ɪꜱ ɴᴏᴛ ᴀᴄᴛɪᴠᴇ! Uꜱᴇ /batch ᴛᴏ ꜱᴛᴀʀᴛ.")
         return
+    
+    status_msg = await message.reply_text("⏳ Wᴀɪᴛɪɴɢ ꜰᴏʀ ᴀʟʟ ꜰɪʟᴇꜱ ᴛᴏ ᴘʀᴏᴄᴇꜱꜱ...")
     
     while batch_users[user_id]["processing_queue"] or batch_users[user_id]["is_processing"]:
         await asyncio.sleep(1)
         
     if not batch_users[user_id]["files"]:
-        await message.reply_text("❌ No files in batch! Send some files first.")
+        await status_msg.edit_text("❌ Nᴏ ꜰɪʟᴇꜱ ɪɴ ʙᴀᴛᴄʜ! Sᴇɴᴅ ꜱᴏᴍᴇ ꜰɪʟᴇꜱ ꜰɪʀꜱᴛ.")
         return
     
     try:
-        status_msg = await message.reply_text("🔄 **Creating Batch Link & Sorting Episodes**\n\n⏳ Please wait...")
+        await status_msg.edit_text("🔄 Cʀᴇᴀᴛɪɴɢ Bᴀᴛᴄʜ Lɪɴᴋ & Sᴏʀᴛɪɴɢ Eᴘɪꜱᴏᴅᴇꜱ...")
         
         file_data_list = []
         for file_uuid in batch_users[user_id]["files"]:
@@ -217,23 +253,20 @@ async def done_command(client: Client, message: Message):
         
         await db.batch_collection.insert_one(batch_data)
         batch_link = f"https://t.me/{config.BOT_USERNAME}?start=batch_{batch_uuid}"
-
-        chat_share_link = f"https://t.me/share/url?url={batch_link}"
         
         await status_msg.edit_text(
-            f"✅ **Batch Created Successfully**\n\n"
-            f"📁 **Total Files:** {len(sorted_file_uuids)}\n"
-            f"⏱ **Auto-Delete:** {batch_data['auto_delete_time']} minutes\n"
-            f"🔗 **Batch Link:** `{batch_link}`"
+            f"✅ **Bᴀᴛᴄʜ Cʀᴇᴀᴛᴇᴅ Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ**\n\n"
+            f"📁 **Tᴏᴛᴀʟ Fɪʟᴇꜱ:** {len(sorted_file_uuids)}\n"
+            f"⏱ **Aᴜᴛᴏ-Dᴇʟᴇᴛᴇ:** {batch_data['auto_delete_time']} ᴍɪɴᴜᴛᴇꜱ\n"
+            f"🔗 **Bᴀᴛᴄʜ Lɪɴᴋ:** `{batch_link}`"
         )
         
         del batch_users[user_id]
         
     except Exception as e:
         await status_msg.edit_text(
-            "❌ **Batch Creation Failed**\n\n"
-            f"Error: {str(e)}\n\n"
-            "Please try again or contact support."
+            f"❌ **Bᴀᴛᴄʜ Cʀᴇᴀᴛɪᴏɴ Fᴀɪʟᴇᴅ**\n\n"
+            f"Eʀʀᴏʀ: {str(e)}"
         )
         if user_id in batch_users:
             del batch_users[user_id]
@@ -245,31 +278,53 @@ async def handle_batch_start(client: Client, message: Message):
         batch_data = await db.batch_collection.find_one({"uuid": batch_uuid})
         
         if not batch_data:
-            await message.reply_text("❌ Batch not found or expired!")
+            await message.reply_text("❌ Bᴀᴛᴄʜ ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ᴇxᴘɪʀᴇᴅ!")
             return
         
-        status_msg = await message.reply_text("🔄 **Processing Batch Download**\n\n⏳ Please wait...")
+        status_msg = await message.reply_text("🔄 Sᴇɴᴅɪɴɢ ꜰɪʟᴇꜱ...")
         
+        sent_count = 0
         for file_uuid in batch_data["files"]:
             file_data = await db.files_collection.find_one({"uuid": file_uuid})
             if file_data:
                 try:
-                    await client.copy_message(
-                        chat_id=message.chat.id,
-                        from_chat_id=config.DB_CHANNEL_ID,
-                        message_id=file_data["message_id"]
-                    )
+                    max_retries = 3
+                    retry_count = 0
+                    
+                    while retry_count < max_retries:
+                        try:
+                            await client.copy_message(
+                                chat_id=message.chat.id,
+                                from_chat_id=config.DB_CHANNEL_ID,
+                                message_id=file_data["message_id"]
+                            )
+                            sent_count += 1
+                            break
+                        except FloodWait as e:
+                            wait_time = e.value
+                            await status_msg.edit_text(
+                                f"⏳ Fʟᴏᴏᴅᴡᴀɪᴛ {wait_time} ꜱᴇᴄᴏɴᴅꜱ. Rᴇꜱᴜᴍɪɴɢ...\n\n"
+                                f"Sᴇɴᴛ: {sent_count}/{len(batch_data['files'])}"
+                            )
+                            await asyncio.sleep(wait_time)
+                            retry_count += 1
+                        except Exception as e:
+                            if retry_count >= max_retries - 1:
+                                raise
+                            await asyncio.sleep(2)
+                            retry_count += 1
+                    
                     await asyncio.sleep(0.3)
+                    
                 except Exception as e:
-                    await message.reply_text(f"❌ Error sending file: {file_data['file_name']}")
+                    await message.reply_text(f"❌ Eʀʀᴏʀ ꜱᴇɴᴅɪɴɢ: {file_data['file_name']}")
         
-        await status_msg.edit_text("✅ **All files sent successfully in order!**")
+        await status_msg.edit_text(f"✅ Aʟʟ ꜰɪʟᴇꜱ ꜱᴇɴᴛ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ! ({sent_count}/{len(batch_data['files'])})")
         
     except Exception as e:
         await message.reply_text(
-            "❌ **Download Failed**\n\n"
-            f"Error: {str(e)}\n\n"
-            "Please try again or contact support."
+            f"❌ **Dᴏᴡɴʟᴏᴀᴅ Fᴀɪʟᴇᴅ**\n\n"
+            f"Eʀʀᴏʀ: {str(e)}"
         )
 
 @Client.on_message(filters.command("cancel") & filters.private)
@@ -283,6 +338,6 @@ async def cancel_command(client: Client, message: Message):
         
     if user_id in batch_users:
         del batch_users[user_id]
-        await message.reply_text("❌ Batch mode cancelled!")
+        await message.reply_text("❌ Bᴀᴛᴄʜ ᴍᴏᴅᴇ ᴄᴀɴᴄᴇʟʟᴇᴅ!")
     else:
-        await message.reply_text("⚠️ Batch mode is not active!")
+        await message.reply_text("⚠️ Bᴀᴛᴄʜ ᴍᴏᴅᴇ ɪꜱ ɴᴏᴛ ᴀᴄᴛɪᴠᴇ!")
