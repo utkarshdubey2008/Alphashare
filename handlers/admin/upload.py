@@ -1,4 +1,6 @@
-# © @ThealphaBotz [2021-2025]
+# -*- coding: utf-8 -*-
+# © @TheAlphaBotz [2021-2025]
+
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from database import Database
@@ -9,6 +11,16 @@ from handlers.admin.manage_admin import get_all_admin_ids
 
 db = Database()
 button_manager = ButtonManager()
+
+# Emoji constants using UTF-8 unicode escape sequences
+class Emoji:
+    ERROR = "\u274C"         # ❌
+    SUCCESS = "\u2705"       # ✅
+    LOADING = "\U0001F504"   # 🔄
+    HOURGLASS = "\u231B"     # ⏳
+    INBOX = "\U0001F4E5"     # 📥
+    ARROW = "\u279C"         # ➜
+    BULLET = "\u2022"        # •
 
 async def process_single_file(client: Client, file_message: Message, status_msg: Message = None):
     try:
@@ -77,17 +89,17 @@ async def process_single_file(client: Client, file_message: Message, status_msg:
             })
         else:
             if status_msg:
-                await status_msg.edit_text("❌ **Unsupported file type!**")
+                await status_msg.edit_text(f"{Emoji.ERROR} **Unsupported file type!**")
             return None
 
         if not file_data["file_id"]:
             if status_msg:
-                await status_msg.edit_text("❌ **Could not process file!**")
+                await status_msg.edit_text(f"{Emoji.ERROR} **Could not process file!**")
             return None
 
         if file_data["file_size"] and file_data["file_size"] > config.MAX_FILE_SIZE:
             if status_msg:
-                await status_msg.edit_text(f"❌ **File too large!**\nMaximum size: {humanbytes(config.MAX_FILE_SIZE)}")
+                await status_msg.edit_text(f"{Emoji.ERROR} **File too large!**\nMaximum size: {humanbytes(config.MAX_FILE_SIZE)}")
             return None
 
         file_uuid = await db.add_file(file_data)
@@ -106,7 +118,7 @@ async def process_single_file(client: Client, file_message: Message, status_msg:
     except Exception as e:
         if status_msg:
             error_text = (
-                "❌ **Upload Failed**\n\n"
+                f"{Emoji.ERROR} **Upload Failed**\n\n"
                 f"Error: {str(e)}\n\n"
                 "Please try again or contact support if the issue persists."
             )
@@ -130,11 +142,11 @@ async def process_upload(client: Client, message: Message, replied_msg=None):
         messages_to_process.append(message)
     
     if not messages_to_process:
-        await message.reply_text("❌ No valid files found!")
+        await message.reply_text(f"{Emoji.ERROR} No valid files found!")
         return
     
     status_msg = await message.reply_text(
-        f"🔄 **Processing Upload**\n\n⏳ Processing {len(messages_to_process)} file(s)..."
+        f"{Emoji.LOADING} **Processing Upload**\n\n{Emoji.HOURGLASS} Processing {len(messages_to_process)} file(s)..."
     )
     
     results = []
@@ -144,22 +156,22 @@ async def process_upload(client: Client, message: Message, replied_msg=None):
             results.append(result)
     
     if not results:
-        await status_msg.edit_text("❌ **No files could be processed!**")
+        await status_msg.edit_text(f"{Emoji.ERROR} **No files could be processed!**")
         return
     
-    success_text = f"✅ **Successfully uploaded {len(results)} file(s)**\n\n"
+    success_text = f"{Emoji.SUCCESS} **Successfully uploaded {len(results)} file(s)**\n\n"
     
     for idx, result in enumerate(results, 1):
         success_text += (
             f"**File {idx}:**\n"
-            f"📁 **Name:** `{result['file_name']}`\n"
-            f"📊 **Size:** {humanbytes(result['file_size'])}\n"
-            f"📎 **Type:** {result['file_type']}\n"
-            f"🔗 **Link:** `{result['share_link']}`\n\n"
+            f"{Emoji.LOADING} **Name:** `{result['file_name']}`\n"
+            f"{Emoji.HOURGLASS} **Size:** {humanbytes(result['file_size'])}\n"
+            f"{Emoji.INBOX} **Type:** {result['file_type']}\n"
+            f"{Emoji.ARROW} **Link:** `{result['share_link']}`\n\n"
         )
     
-    success_text += f"⏱ **Auto-Delete:** {getattr(config, 'DEFAULT_AUTO_DELETE', 30)} minutes\n"
-    success_text += f"💡 Use `Check .env file of your Repo to change auto-delete time"
+    success_text += f"{Emoji.HOURGLASS} **Auto-Delete:** {getattr(config, 'DEFAULT_AUTO_DELETE', 30)} minutes\n"
+    success_text += f"{Emoji.ARROW} Use `Check .env file of your Repo to change auto-delete time`"
     
     if len(results) == 1:
         await status_msg.edit_text(
@@ -172,11 +184,3 @@ async def process_upload(client: Client, message: Message, replied_msg=None):
 @Client.on_message(filters.command("upload") & filters.reply)
 async def upload_command(client: Client, message: Message):
     await process_upload(client, message, message.reply_to_message)
-
-@Client.on_message(
-    filters.private & 
-    (filters.document | filters.video | filters.audio | filters.photo | 
-     filters.voice | filters.video_note | filters.animation)
-)
-async def direct_upload(client: Client, message: Message):
-    await process_upload(client, message)
