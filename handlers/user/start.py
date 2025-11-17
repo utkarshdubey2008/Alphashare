@@ -1,7 +1,9 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2021-2025 @thealphabotz - All Rights Reserved.
 
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.errors import FloodWait
 from database import Database
 from utils import ButtonManager
 import config
@@ -13,6 +15,19 @@ from ..utils.message_delete import schedule_message_deletion
 logger = logging.getLogger(__name__)
 db = Database()
 button_manager = ButtonManager()
+
+active_batch_users = set()
+
+class Emoji:
+    WARNING = "\u26A0\uFE0F"
+    SUCCESS = "\u2705"
+    ERROR = "\u274C"
+    LOADING = "\U0001F504"
+    BOX = "\U0001F4E6"
+    HOURGLASS = "\u231B"
+    INBOX = "\U0001F4E5"
+    ARROW = "\u279C"
+    BULLET = "\u2022"
 
 async def decode_codex_link(encoded_string: str) -> tuple:
     try:
@@ -41,6 +56,127 @@ async def decode_codex_link(encoded_string: str) -> tuple:
         logger.error(f"Error decoding CodeXBotz link: {str(e)}")
         return False, []
 
+async def send_batch_files(client: Client, message: Message, message_ids: list, is_codex: bool = False):
+    user_id = message.from_user.id
+    
+    if user_id in active_batch_users:
+        await message.reply_text(
+            f"{Emoji.WARNING} **Pʟᴇᴀꜱᴇ Wᴀɪᴛ!**\n\n"
+            f"Yᴏᴜ ᴀʟʀᴇᴀᴅʏ ʜᴀᴠᴇ ᴀɴ ᴏɴɢᴏɪɴɢ ʙᴀᴛᴄʜ ᴘʀᴏᴄᴇꜱꜱ.\n"
+            f"Pʟᴇᴀꜱᴇ ᴡᴀɪᴛ ꜰᴏʀ ɪᴛ ᴛᴏ ᴄᴏᴍᴘʟᴇᴛᴇ ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ.",
+            protect_content=config.PRIVACY_MODE
+        )
+        return
+    
+    active_batch_users.add(user_id)
+    
+    try:
+        status_msg = await message.reply_text(
+            f"{Emoji.LOADING} **Pʀᴏᴄᴇꜱꜱɪɴɢ...**",
+            protect_content=config.PRIVACY_MODE
+        )
+        
+        success_count = 0
+        failed_count = 0
+        sent_msgs = []
+        first_file_sent = False
+        
+        for idx, msg_id in enumerate(message_ids, 1):
+            try:
+                max_retries = 3
+                retry_count = 0
+                
+                while retry_count < max_retries:
+                    try:
+                        msg = await client.copy_message(
+                            chat_id=message.chat.id,
+                            from_chat_id=config.DB_CHANNEL_ID,
+                            message_id=msg_id,
+                            protect_content=config.PRIVACY_MODE
+                        )
+                        
+                        if msg and msg.id:
+                            sent_msgs.append(msg.id)
+                            success_count += 1
+                            
+                            if not first_file_sent:
+                                try:
+                                    await status_msg.delete()
+                                except:
+                                    pass
+                                first_file_sent = True
+                        
+                        break
+                        
+                    except FloodWait as e:
+                        wait_time = e.value
+                        if first_file_sent:
+                            flood_msg = await message.reply_text(
+                                f"{Emoji.HOURGLASS} **Fʟᴏᴏᴅᴡᴀɪᴛ {wait_time} ꜱᴇᴄᴏɴᴅꜱ. Rᴇꜱᴜᴍɪɴɢ...**\n\n"
+                                f"Sᴇɴᴛ: {success_count}/{len(message_ids)}",
+                                protect_content=config.PRIVACY_MODE
+                            )
+                        else:
+                            try:
+                                await status_msg.edit_text(
+                                    f"{Emoji.HOURGLASS} **Fʟᴏᴏᴅᴡᴀɪᴛ {wait_time} ꜱᴇᴄᴏɴᴅꜱ. Rᴇꜱᴜᴍɪɴɢ...**",
+                                    protect_content=config.PRIVACY_MODE
+                                )
+                            except:
+                                pass
+                        
+                        await asyncio.sleep(wait_time)
+                        retry_count += 1
+                        
+                        if first_file_sent:
+                            try:
+                                await flood_msg.delete()
+                            except:
+                                pass
+                    
+                    except Exception as e:
+                        if retry_count >= max_retries - 1:
+                            raise
+                        await asyncio.sleep(2)
+                        retry_count += 1
+                
+            except Exception as e:
+                failed_count += 1
+                logger.error(f"Batch file send error: {str(e)}")
+                continue
+        
+        if success_count > 0 and config.AUTO_DELETE_TIME:
+            delete_time = config.AUTO_DELETE_TIME
+            info_msg = await client.send_message(
+                chat_id=message.chat.id,
+                text=f"{Emoji.HOURGLASS} **Aᴜᴛᴏ Dᴇʟᴇᴛᴇ Iɴꜰᴏʀᴍᴀᴛɪᴏɴ**\n\n"
+                     f"{Emoji.ARROW} Fɪʟᴇꜱ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ {delete_time} ᴍɪɴᴜᴛᴇꜱ.\n"
+                     f"{Emoji.ARROW} Fᴏʀᴡᴀʀᴅ ᴛᴏ ꜱᴀᴠᴇ ᴘᴇʀᴍᴀɴᴇɴᴛʟʏ.",
+                protect_content=config.PRIVACY_MODE
+            )
+            if info_msg and info_msg.id:
+                sent_msgs.append(info_msg.id)
+                asyncio.create_task(schedule_message_deletion(
+                    client, message.chat.id, sent_msgs, delete_time
+                ))
+        
+        if not first_file_sent:
+            try:
+                await status_msg.edit_text(
+                    f"{Emoji.ERROR} **Nᴏ Fɪʟᴇꜱ Fᴏᴜɴᴅ**\n\n"
+                    f"Aʟʟ ꜰɪʟᴇꜱ ᴍᴀʏ ʜᴀᴠᴇ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ ᴏʀ ᴀʀᴇ ᴜɴᴀᴠᴀɪʟᴀʙʟᴇ."
+                )
+            except:
+                pass
+        elif failed_count > 0:
+            summary_msg = await message.reply_text(
+                f"{Emoji.SUCCESS} **Sᴇɴᴛ:** {success_count} | {Emoji.ERROR} **Fᴀɪʟᴇᴅ:** {failed_count}",
+                protect_content=config.PRIVACY_MODE
+            )
+    
+    finally:
+        active_batch_users.discard(user_id)
+
 @Client.on_message(filters.command("start"))
 async def start_command(client: Client, message: Message):
     try:
@@ -57,7 +193,7 @@ async def start_command(client: Client, message: Message):
 
         force_sub_status = await button_manager.check_force_sub(client, message.from_user.id)
         if not force_sub_status:
-            force_sub_text = "**⚠️ You must join our channel(s) to use this bot!**\n\n"
+            force_sub_text = f"**{Emoji.WARNING} Yᴏᴜ ᴍᴜꜱᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(ꜱ) ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ʙᴏᴛ!**\n\n"
             channels = [
                 (config.FORCE_SUB_CHANNEL, "Join Channel 1"),
                 (config.FORCE_SUB_CHANNEL_2, "Join Channel 2"),
@@ -67,9 +203,9 @@ async def start_command(client: Client, message: Message):
 
             for ch_id, name in channels:
                 if ch_id != 0:
-                    force_sub_text += f"• Join {name}\n"
+                    force_sub_text += f"{Emoji.BULLET} {name}\n"
 
-            force_sub_text += "\nJoin the channel(s) and try again."
+            force_sub_text += "\nJᴏɪɴ ᴛʜᴇ ᴄʜᴀɴɴᴇʟ(ꜱ) ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ."
 
             await message.reply_text(
                 force_sub_text,
@@ -82,56 +218,8 @@ async def start_command(client: Client, message: Message):
 
         if message_ids:
             if is_codex_batch:
-                status_msg = await message.reply_text(
-                    f"🔄 **Processing Batch Download**\n\n"
-                    f"📦 Total Files: {len(message_ids)}\n"
-                    f"⏳ Please wait...",
-                    protect_content=config.PRIVACY_MODE
-                )
-
-                success_count = 0
-                failed_count = 0
-                sent_msgs = []
-
-                for msg_id in message_ids:
-                    try:
-                        msg = await client.copy_message(
-                            chat_id=message.chat.id,
-                            from_chat_id=config.DB_CHANNEL_ID,
-                            message_id=msg_id,
-                            protect_content=config.PRIVACY_MODE
-                        )
-                        if msg:
-                            sent_msgs.append(msg.id)
-                            success_count += 1
-                    except Exception as e:
-                        failed_count += 1
-                        logger.error(f"Batch file send error: {str(e)}")
-                        continue
-
-                if success_count > 0 and config.AUTO_DELETE_TIME:
-                    delete_time = config.AUTO_DELETE_TIME
-                    info_msg = await client.send_message(
-                        chat_id=message.chat.id,
-                        text=f"⏳ **Auto Delete Information**\n\n"
-                             f"➜ This file will be deleted in {delete_time} minutes.\n"
-                             f"➜ Forward this file to your saved messages or another chat to save it permanently.",
-                        protect_content=config.PRIVACY_MODE
-                    )
-                    if info_msg and info_msg.id:
-                        sent_msgs.append(info_msg.id)
-                        asyncio.create_task(schedule_message_deletion(
-                            client, message.chat.id, sent_msgs, delete_time
-                        ))
-
-                status_text = (
-                    f"✅ **Batch Download Complete**\n\n"
-                    f"📥 Successfully sent: {success_count} files\n"
-                    f"❌ Failed: {failed_count} files"
-                )
-                await status_msg.edit_text(status_text)
+                await send_batch_files(client, message, message_ids, is_codex=True)
                 return
-
             else:
                 try:
                     msg = await client.copy_message(
@@ -140,13 +228,13 @@ async def start_command(client: Client, message: Message):
                         message_id=message_ids[0],
                         protect_content=config.PRIVACY_MODE
                     )
-                    if msg:
+                    if msg and msg.id:
                         if config.AUTO_DELETE_TIME:
                             delete_time = config.AUTO_DELETE_TIME
                             info_msg = await msg.reply_text(
-                                f"⏳ **Auto Delete Information**\n\n"
-                                f"➜ This file will be deleted in {delete_time} minutes.\n"
-                                f"➜ Forward this file to your saved messages or another chat to save it permanently.",
+                                f"{Emoji.HOURGLASS} **Aᴜᴛᴏ Dᴇʟᴇᴛᴇ Iɴꜰᴏʀᴍᴀᴛɪᴏɴ**\n\n"
+                                f"{Emoji.ARROW} Fɪʟᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ {delete_time} ᴍɪɴᴜᴛᴇꜱ.\n"
+                                f"{Emoji.ARROW} Fᴏʀᴡᴀʀᴅ ᴛᴏ ꜱᴀᴠᴇ ᴘᴇʀᴍᴀɴᴇɴᴛʟʏ.",
                                 protect_content=config.PRIVACY_MODE
                             )
                             if info_msg and info_msg.id:
@@ -156,61 +244,146 @@ async def start_command(client: Client, message: Message):
                     return
                 except Exception:
                     await message.reply_text(
-                        "❌ File not found or has been deleted!",
+                        f"{Emoji.ERROR} Fɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ʜᴀꜱ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ!",
                         protect_content=config.PRIVACY_MODE
                     )
                     return
 
         if command.startswith("batch_"):
+            user_id = message.from_user.id
+            
+            if user_id in active_batch_users:
+                await message.reply_text(
+                    f"{Emoji.WARNING} **Pʟᴇᴀꜱᴇ Wᴀɪᴛ!**\n\n"
+                    f"Yᴏᴜ ᴀʟʀᴇᴀᴅʏ ʜᴀᴠᴇ ᴀɴ ᴏɴɢᴏɪɴɢ ʙᴀᴛᴄʜ ᴘʀᴏᴄᴇꜱꜱ.\n"
+                    f"Pʟᴇᴀꜱᴇ ᴡᴀɪᴛ ꜰᴏʀ ɪᴛ ᴛᴏ ᴄᴏᴍᴘʟᴇᴛᴇ ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ.",
+                    protect_content=config.PRIVACY_MODE
+                )
+                return
+            
             batch_uuid = command.replace("batch_", "")
             batch_data = await db.get_batch(batch_uuid)
 
             if not batch_data:
                 await message.reply_text(
-                    "❌ Batch not found or has been deleted!",
+                    f"{Emoji.ERROR} Bᴀᴛᴄʜ ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ʜᴀꜱ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ!",
                     protect_content=config.PRIVACY_MODE
                 )
                 return
 
-            status_msg = await message.reply_text("🔄 Processing...", protect_content=config.PRIVACY_MODE)
-            success_count = 0
-            failed_count = 0
-            sent_msgs = []
+            active_batch_users.add(user_id)
+            
+            try:
+                status_msg = await message.reply_text(
+                    f"{Emoji.LOADING} **Pʀᴏᴄᴇꜱꜱɪɴɢ...**",
+                    protect_content=config.PRIVACY_MODE
+                )
+                
+                success_count = 0
+                failed_count = 0
+                sent_msgs = []
+                first_file_sent = False
+                total_files = len(batch_data["files"])
 
-            for file_uuid in batch_data["files"]:
-                file_data = await db.get_file(file_uuid)
-                if file_data and "message_id" in file_data:
-                    try:
-                        msg = await client.copy_message(
+                for file_uuid in batch_data["files"]:
+                    file_data = await db.get_file(file_uuid)
+                    if file_data and "message_id" in file_data:
+                        try:
+                            max_retries = 3
+                            retry_count = 0
+                            
+                            while retry_count < max_retries:
+                                try:
+                                    msg = await client.copy_message(
+                                        chat_id=message.chat.id,
+                                        from_chat_id=config.DB_CHANNEL_ID,
+                                        message_id=file_data["message_id"],
+                                        protect_content=config.PRIVACY_MODE
+                                    )
+                                    
+                                    if msg and msg.id:
+                                        sent_msgs.append(msg.id)
+                                        success_count += 1
+                                        
+                                        if not first_file_sent:
+                                            try:
+                                                await status_msg.delete()
+                                            except:
+                                                pass
+                                            first_file_sent = True
+                                    
+                                    break
+                                    
+                                except FloodWait as e:
+                                    wait_time = e.value
+                                    if first_file_sent:
+                                        flood_msg = await message.reply_text(
+                                            f"{Emoji.HOURGLASS} **Fʟᴏᴏᴅᴡᴀɪᴛ {wait_time} ꜱᴇᴄᴏɴᴅꜱ. Rᴇꜱᴜᴍɪɴɢ...**\n\n"
+                                            f"Sᴇɴᴛ: {success_count}/{total_files}",
+                                            protect_content=config.PRIVACY_MODE
+                                        )
+                                    else:
+                                        try:
+                                            await status_msg.edit_text(
+                                                f"{Emoji.HOURGLASS} **Fʟᴏᴏᴅᴡᴀɪᴛ {wait_time} ꜱᴇᴄᴏɴᴅꜱ. Rᴇꜱᴜᴍɪɴɢ...**",
+                                                protect_content=config.PRIVACY_MODE
+                                            )
+                                        except:
+                                            pass
+                                    
+                                    await asyncio.sleep(wait_time)
+                                    retry_count += 1
+                                    
+                                    if first_file_sent:
+                                        try:
+                                            await flood_msg.delete()
+                                        except:
+                                            pass
+                                
+                                except Exception as e:
+                                    if retry_count >= max_retries - 1:
+                                        raise
+                                    await asyncio.sleep(2)
+                                    retry_count += 1
+                            
+                        except Exception as e:
+                            failed_count += 1
+                            logger.error(f"Batch file send error: {str(e)}")
+                            continue
+
+                if success_count > 0:
+                    await db.increment_batch_downloads(batch_uuid)
+                    if config.AUTO_DELETE_TIME:
+                        delete_time = config.AUTO_DELETE_TIME
+                        info_msg = await client.send_message(
                             chat_id=message.chat.id,
-                            from_chat_id=config.DB_CHANNEL_ID,
-                            message_id=file_data["message_id"],
+                            text=f"{Emoji.HOURGLASS} **Aᴜᴛᴏ Dᴇʟᴇᴛᴇ Iɴꜰᴏʀᴍᴀᴛɪᴏɴ**\n\n"
+                                 f"{Emoji.ARROW} Fɪʟᴇꜱ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ {delete_time} ᴍɪɴᴜᴛᴇꜱ.\n"
+                                 f"{Emoji.ARROW} Fᴏʀᴡᴀʀᴅ ᴛᴏ ꜱᴀᴠᴇ ᴘᴇʀᴍᴀɴᴇɴᴛʟʏ.",
                             protect_content=config.PRIVACY_MODE
                         )
-                        if msg and msg.id:
-                            sent_msgs.append(msg.id)
-                            success_count += 1
-                    except Exception as e:
-                        failed_count += 1
-                        logger.error(f"Batch file send error: {str(e)}")
-                        continue
+                        if info_msg and info_msg.id:
+                            sent_msgs.append(info_msg.id)
+                            asyncio.create_task(schedule_message_deletion(
+                                client, message.chat.id, sent_msgs, delete_time
+                            ))
 
-            if success_count > 0:
-                await db.increment_batch_downloads(batch_uuid)
-                if config.AUTO_DELETE_TIME:
-                    delete_time = config.AUTO_DELETE_TIME
-                    info_msg = await client.send_message(
-                        chat_id=message.chat.id,
-                        text=f"⏳ Files will be deleted in {delete_time} minutes.\nForward to save permanently.",
+                if not first_file_sent:
+                    try:
+                        await status_msg.edit_text(
+                            f"{Emoji.ERROR} **Nᴏ Fɪʟᴇꜱ Fᴏᴜɴᴅ**\n\n"
+                            f"Aʟʟ ꜰɪʟᴇꜱ ᴍᴀʏ ʜᴀᴠᴇ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
+                        )
+                    except:
+                        pass
+                elif failed_count > 0:
+                    await message.reply_text(
+                        f"{Emoji.SUCCESS} **Sᴇɴᴛ:** {success_count} | {Emoji.ERROR} **Fᴀɪʟᴇᴅ:** {failed_count}",
                         protect_content=config.PRIVACY_MODE
                     )
-                    if info_msg and info_msg.id:
-                        sent_msgs.append(info_msg.id)
-                        asyncio.create_task(schedule_message_deletion(
-                            client, message.chat.id, sent_msgs, delete_time
-                        ))
-
-            await status_msg.edit_text(f"✅ Sent: {success_count} | ❌ Failed: {failed_count}")
+            
+            finally:
+                active_batch_users.discard(user_id)
 
         else:
             file_uuid = command
@@ -218,7 +391,7 @@ async def start_command(client: Client, message: Message):
 
             if not file_data:
                 await message.reply_text(
-                    "❌ File not found or has been deleted!",
+                    f"{Emoji.ERROR} Fɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ʜᴀꜱ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ!",
                     protect_content=config.PRIVACY_MODE
                 )
                 return
@@ -236,7 +409,9 @@ async def start_command(client: Client, message: Message):
                     if config.AUTO_DELETE_TIME:
                         delete_time = config.AUTO_DELETE_TIME
                         info_msg = await msg.reply_text(
-                            f"⏳ File will be deleted in {delete_time} minutes.\nForward to save permanently.",
+                            f"{Emoji.HOURGLASS} **Aᴜᴛᴏ Dᴇʟᴇᴛᴇ Iɴꜰᴏʀᴍᴀᴛɪᴏɴ**\n\n"
+                            f"{Emoji.ARROW} Fɪʟᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ {delete_time} ᴍɪɴᴜᴛᴇꜱ.\n"
+                            f"{Emoji.ARROW} Fᴏʀᴡᴀʀᴅ ᴛᴏ ꜱᴀᴠᴇ ᴘᴇʀᴍᴀɴᴇɴᴛʟʏ.",
                             protect_content=config.PRIVACY_MODE
                         )
                         if info_msg and info_msg.id:
@@ -245,7 +420,10 @@ async def start_command(client: Client, message: Message):
                             ))
 
             except Exception as e:
-                await message.reply_text(f"❌ Error: {str(e)}", protect_content=config.PRIVACY_MODE)
+                await message.reply_text(
+                    f"{Emoji.ERROR} Eʀʀᴏʀ: {str(e)}", 
+                    protect_content=config.PRIVACY_MODE
+                )
 
     else:
         buttons = button_manager.start_button()
@@ -257,4 +435,4 @@ async def start_command(client: Client, message: Message):
                 user_mention=user_mention
             ),
             reply_markup=buttons
-        )
+                                    )
