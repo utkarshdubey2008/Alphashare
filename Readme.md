@@ -262,22 +262,6 @@ python main.py
 
 ---
 
-## 📸 Screenshots
-
-<div align="center">
-
-### Quality Upload in Action
-
-<img src="https://raw.githubusercontent.com/utkarshdubey2008/AlphaShare/main/assets/quality_demo.png" alt="Quality Upload Demo" width="700">
-
-### Batch Mode Episode Sorting
-
-<img src="https://raw.githubusercontent.com/utkarshdubey2008/AlphaShare/main/assets/batch_demo.png" alt="Batch Mode Demo" width="700">
-
-</div>
-
----
-
 ## 🎓 Usage Examples
 
 ### Example 1: Quality Upload Mode
